@@ -1,0 +1,27 @@
+name: Build APK
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.9' }
+      - name: Build signed APK
+        env:
+          LIA_KEYSTORE_PATH: ${{ github.workspace }}/signing/lia.jks
+          LIA_KEYSTORE_PASSWORD: 'FBMr1zE8jiOzVOZzpMUCDZ3c'
+        run: gradle :app:assembleRelease --no-daemon
+      - run: cp app/build/outputs/apk/release/app-release.apk LiaKiHindi.apk
+      - uses: actions/upload-artifact@v4
+        with: { name: LiaKiHindi, path: LiaKiHindi.apk }
+      - name: Publish release
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: gh release create "v${{ github.run_number }}" LiaKiHindi.apk --title "Lia ki Hindi v${{ github.run_number }}" --notes "Install LiaKiHindi.apk on the phone." --latest
