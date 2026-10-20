@@ -62,7 +62,7 @@ public class MainActivity extends Activity {
 
     static final String APP_URL = "https://claude.ai/artifact/G3RH8APiS7w4oAXMb7i2dB";
     static final String LOGIN_URL = "https://claude.ai/login";
-    static final int REQ_FILE = 11, REQ_MIC = 12;
+    static final int REQ_FILE = 11, REQ_MIC = 12, REQ_NOTIFY = 13;
 
     private WebView web;
     private LinearLayout signInBar;
@@ -395,6 +395,22 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface public void exit() {
             runOnUiThread(MainActivity.this::confirmExit);
+        }
+
+        /** iPad-time alarm: rings on this phone at atMs (epoch ms), even if the app is in the background. */
+        @JavascriptInterface public boolean canAlarm() { return true; }
+
+        @JavascriptInterface public void setAlarm(double atMs, String title, String text) {
+            runOnUiThread(() -> {
+                if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIFY);
+                }
+                TimerReceiver.schedule(MainActivity.this, (long) atMs, title, text);
+            });
+        }
+
+        @JavascriptInterface public void cancelAlarm() {
+            runOnUiThread(() -> TimerReceiver.cancel(MainActivity.this));
         }
 
         @JavascriptInterface public boolean canSpeak() { return hindiVoiceReady; }
