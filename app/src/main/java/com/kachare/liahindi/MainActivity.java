@@ -53,7 +53,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Lia ki Hindi: a small Android shell around the Lia ki Hindi page on claude.ai.
+ * Lia Victoria: a small Android shell around the Lia Victoria page on claude.ai.
  * First run: sign in to Claude (cookies are kept, so this is one time).
  * After that the app opens straight to the lesson page, where Lia or Vivek enter their PIN.
  * The page gets the phone's Hindi voice and speech recognition through window.LiaNative.
@@ -75,6 +75,7 @@ public class MainActivity extends Activity {
 
     private TextToSpeech tts;
     private volatile boolean hindiVoiceReady = false;
+    private volatile boolean ttsReady = false;
     private SpeechRecognizer recognizer;
     private final Map<String, String> results = new ConcurrentHashMap<>();
     private final AtomicInteger ids = new AtomicInteger();
@@ -319,6 +320,7 @@ public class MainActivity extends Activity {
     private void setupTts() {
         tts = new TextToSpeech(this, status -> {
             if (status != TextToSpeech.SUCCESS) return;
+            ttsReady = true;
             int r = tts.setLanguage(new Locale("hi", "IN"));
             hindiVoiceReady = r != TextToSpeech.LANG_MISSING_DATA && r != TextToSpeech.LANG_NOT_SUPPORTED;
         });
@@ -415,9 +417,26 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface public boolean canSpeak() { return hindiVoiceReady; }
 
+        /** Is a voice installed for this language (e.g. "hi-IN", "mr-IN", "en-IN")? */
+        @JavascriptInterface public boolean canSpeakLang(String lang) {
+            if (tts == null || !ttsReady) return false;
+            int r = tts.isLanguageAvailable(Locale.forLanguageTag(lang == null ? "hi-IN" : lang));
+            return r >= TextToSpeech.LANG_AVAILABLE;
+        }
+
+        @JavascriptInterface public void speakLang(String text, float rate, String lang) {
+            runOnUiThread(() -> {
+                if (tts == null || !ttsReady || text == null) return;
+                tts.setLanguage(Locale.forLanguageTag(lang == null ? "hi-IN" : lang));
+                tts.setSpeechRate(rate > 0.3f && rate < 2f ? rate : 0.85f);
+                tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "lia" + ids.incrementAndGet());
+            });
+        }
+
         @JavascriptInterface public void speak(String text, float rate) {
             runOnUiThread(() -> {
                 if (!hindiVoiceReady || text == null) return;
+                tts.setLanguage(new Locale("hi", "IN"));
                 tts.setSpeechRate(rate > 0.3f && rate < 2f ? rate : 0.85f);
                 tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "lia" + ids.incrementAndGet());
             });
@@ -480,7 +499,7 @@ public class MainActivity extends Activity {
     private void confirmExit() {
         if (exitDialog != null && exitDialog.isShowing()) return;
         exitDialog = new AlertDialog.Builder(this)
-                .setTitle("Close Lia ki Hindi?")
+                .setTitle("Close Lia Victoria?")
                 .setMessage("Progress is saved. You will only need your PIN next time.")
                 .setPositiveButton("Close", (d, w) -> finish())
                 .setNegativeButton("Stay", null)

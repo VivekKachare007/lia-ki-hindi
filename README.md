@@ -1,6 +1,6 @@
-# Lia ki Hindi
+# Lia Victoria
 
-Android app for Lia's daily 20-minute Hindi lessons.
+Android app for Lia’s daily Hindi and Marathi lessons, with iPad-time rewards.
 
 - First open: sign in to Claude once (use "Continue with email").
 - After that the app opens straight to the PIN screen (Lia or Vivek).

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 432 432" width="432" height="432">
+  <!-- hair behind the head, falling to the shoulders -->
+  <path d="M120 200 C112 120 160 78 216 78 C272 78 320 120 312 200 C318 260 326 330 318 372 L114 372 C106 330 114 260 120 200 Z" fill="#17131A"/>
+  <!-- neck -->
+  <path d="M192 300 h48 v46 c-14 10 -34 10 -48 0 z" fill="#A86E4C"/>
+  <!-- face -->
+  <ellipse cx="216" cy="214" rx="80" ry="94" fill="#BE8460"/>
+  <!-- ears -->
+  <!-- shoulders: black t-shirt with a small pink star (drawn after the hair behind) -->
+  <path d="M96 432 C98 372 140 340 216 340 C292 340 334 372 336 432 Z" fill="#1E1B22"/>
+  <path d="M246 374 l6 13 14 1 -11 9 4 14 -13-8 -12 8 4-14 -11-9 14-1 z" fill="#F28CB1"/>
+  <!-- front hair: middle part with two curtains -->
+  <path d="M216 92 C176 92 140 112 132 160 C128 196 132 250 132 378 C114 300 110 210 122 156 C134 104 176 82 216 84 Z" fill="#17131A"/>
+  <path d="M216 92 C180 100 150 128 140 170 C136 190 134 214 136 238 C148 200 160 150 216 104 Z" fill="#17131A"/>
+  <path d="M216 92 C256 92 292 112 300 160 C304 196 300 250 300 378 C318 300 322 210 310 156 C298 104 256 82 216 84 Z" fill="#17131A"/>
+  <path d="M216 92 C252 100 282 128 292 170 C296 190 298 214 296 238 C284 200 272 150 216 104 Z" fill="#17131A"/>
+  <!-- soft hair shine -->
+  <path d="M168 118 C184 104 200 98 214 96" stroke="#3A3140" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <!-- eyebrows -->
+  <path d="M168 178 C178 170 192 170 202 176" stroke="#1E1518" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <path d="M230 176 C240 170 254 170 264 178" stroke="#1E1518" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <!-- eyes -->
+  <ellipse cx="185" cy="205" rx="17" ry="14" fill="#FFFFFF"/>
+  <ellipse cx="247" cy="205" rx="17" ry="14" fill="#FFFFFF"/>
+  <circle cx="187" cy="206" r="10" fill="#3B2316"/>
+  <circle cx="249" cy="206" r="10" fill="#3B2316"/>
+  <circle cx="191" cy="202" r="3.5" fill="#FFFFFF"/>
+  <circle cx="253" cy="202" r="3.5" fill="#FFFFFF"/>
+  <path d="M167 199 C176 189 194 189 203 198" stroke="#1E1518" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M229 198 C238 189 256 189 265 199" stroke="#1E1518" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <!-- cheeks -->
+  <ellipse cx="166" cy="240" rx="15" ry="9" fill="#E07C77" opacity="0.45"/>
+  <ellipse cx="266" cy="240" rx="15" ry="9" fill="#E07C77" opacity="0.45"/>
+  <!-- nose -->
+  <path d="M214 222 C211 234 210 240 218 241" stroke="#93593B" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <!-- happy smile -->
+  <path d="M190 258 C202 276 230 276 242 258 C232 264 200 264 190 258 Z" fill="#8E2F3C"/>
+  <path d="M196 262 C206 268 226 268 236 262" stroke="#FFFFFF" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>
