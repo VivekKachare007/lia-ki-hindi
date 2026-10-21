@@ -62,7 +62,7 @@ public class MainActivity extends Activity {
 
     static final String APP_URL = "https://claude.ai/artifact/G3RH8APiS7w4oAXMb7i2dB";
     static final String LOGIN_URL = "https://claude.ai/login";
-    static final int REQ_FILE = 11, REQ_MIC = 12, REQ_NOTIFY = 13;
+    static final int REQ_FILE = 11, REQ_MIC = 12, REQ_NOTIFY = 13, REQ_SPEECH = 14;
 
     private WebView web;
     private LinearLayout signInBar;
@@ -77,6 +77,7 @@ public class MainActivity extends Activity {
     private volatile boolean hindiVoiceReady = false;
     private volatile boolean ttsReady = false;
     private SpeechRecognizer recognizer;
+    private String speechId = null;          // the listen() call the Google voice dialog is answering
     private final Map<String, String> results = new ConcurrentHashMap<>();
     private final AtomicInteger ids = new AtomicInteger();
 
@@ -302,6 +303,24 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_SPEECH) {
+            String id = speechId; speechId = null;
+            if (id == null) return;
+            if (resultCode == RESULT_OK && data != null) {
+                ArrayList<String> alts = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+                if (alts != null && !alts.isEmpty()) putResult(id, "done", null, alts);
+                else putResult(id, "error", "no-speech", null);
+            } else if (resultCode == RESULT_CANCELED) {
+                putResult(id, "error", "cancelled", null);
+            } else if (resultCode == RecognizerIntent.RESULT_NETWORK_ERROR) {
+                putResult(id, "error", "network", null);
+            } else if (resultCode == RecognizerIntent.RESULT_NO_MATCH) {
+                putResult(id, "error", "no-speech", null);
+            } else {
+                putResult(id, "error", "busy", null);
+            }
+            return;
+        }
         if (requestCode != REQ_FILE || fileCallback == null) return;
         Uri[] result = null;
         if (resultCode == RESULT_OK) {
@@ -344,18 +363,54 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void startListening(String id, String lang) {
+    /** First choice: Google's own "Speak now" voice-typing popup. It handles the microphone,
+     *  waits for the child to start, and is far more reliable than an in-app recogniser. */
+    private boolean startVoiceDialog(String id, String lang) {
+        Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang);
+        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, lang);
+        i.putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, false);
+        i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5);
+        i.putExtra(RecognizerIntent.EXTRA_PROMPT, lang.startsWith("mr") ? "बोला… (Speak now)" : "बोलो… (Speak now)");
+        try {
+            speechId = id;
+            startActivityForResult(i, REQ_SPEECH);
+            return true;
+        } catch (ActivityNotFoundException e) {
+            speechId = null;
+            return false;
+        }
+    }
+
+    /** Backup: the in-app recogniser, used only when the phone has no voice-typing popup. */
+    private void startListening(String id, String lang, int attempt) {
         if (recognizer != null) {
+            try { recognizer.cancel(); } catch (Exception ignored) { }
             recognizer.destroy();
             recognizer = null;
         }
         recognizer = SpeechRecognizer.createSpeechRecognizer(this);
+        final String[] partial = {null};
         recognizer.setRecognitionListener(new RecognitionListener() {
             @Override public void onResults(Bundle b) {
                 ArrayList<String> alts = b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                if ((alts == null || alts.isEmpty() || alts.get(0).trim().isEmpty()) && partial[0] != null) {
+                    alts = new ArrayList<>(); alts.add(partial[0]);
+                }
                 putResult(id, "done", null, alts);
             }
             @Override public void onError(int error) {
+                // A moment of "busy" or "client" error is common right after starting: retry once, quietly.
+                if ((error == SpeechRecognizer.ERROR_RECOGNIZER_BUSY || error == SpeechRecognizer.ERROR_CLIENT) && attempt == 0) {
+                    main.postDelayed(() -> startListening(id, lang, 1), 400);
+                    return;
+                }
+                if ((error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) && partial[0] != null) {
+                    ArrayList<String> alts = new ArrayList<>(); alts.add(partial[0]);
+                    putResult(id, "done", null, alts);
+                    return;
+                }
                 String e;
                 switch (error) {
                     case SpeechRecognizer.ERROR_NO_MATCH:
@@ -363,24 +418,32 @@ public class MainActivity extends Activity {
                     case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS: e = "permission"; break;
                     case SpeechRecognizer.ERROR_NETWORK:
                     case SpeechRecognizer.ERROR_NETWORK_TIMEOUT: e = "network"; break;
-                    default: e = "error";
+                    case 12: case 13: e = "language"; break;   // language not supported / not downloaded
+                    default: e = "busy";
                 }
                 putResult(id, "error", e, null);
             }
-            @Override public void onReadyForSpeech(Bundle b) { }
+            @Override public void onReadyForSpeech(Bundle b) { putResult(id, "listening", null, null); }
             @Override public void onBeginningOfSpeech() { }
             @Override public void onRmsChanged(float v) { }
             @Override public void onBufferReceived(byte[] bytes) { }
             @Override public void onEndOfSpeech() { }
-            @Override public void onPartialResults(Bundle b) { }
+            @Override public void onPartialResults(Bundle b) {
+                ArrayList<String> p = b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                if (p != null && !p.isEmpty() && !p.get(0).trim().isEmpty()) partial[0] = p.get(0);
+            }
             @Override public void onEvent(int i, Bundle b) { }
         });
         Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang);
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, lang);
-        i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
-        i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false);
+        i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5);
+        i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
+        // Children pause mid-sentence: wait longer before deciding she has finished.
+        i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2500L);
+        i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 2000L);
+        i.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 1500L);
         recognizer.startListening(i);
     }
 
@@ -447,25 +510,31 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface public boolean canListen() {
-            return SpeechRecognizer.isRecognitionAvailable(MainActivity.this);
+            if (SpeechRecognizer.isRecognitionAvailable(MainActivity.this)) return true;
+            Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+            return i.resolveActivity(getPackageManager()) != null;
         }
 
         @JavascriptInterface public String listen(String lang) {
             final String id = "r" + ids.incrementAndGet();
             final String l = (lang == null || lang.isEmpty()) ? "hi-IN" : lang;
-            if (!hasMic()) {
-                putResult(id, "error", "permission", null);
-                runOnUiThread(() -> requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQ_MIC));
-                return id;
-            }
             putResult(id, "pending", null, null);
-            runOnUiThread(() -> startListening(id, l));
+            runOnUiThread(() -> {
+                if (speechId != null) { putResult(id, "error", "busy", null); return; }
+                if (startVoiceDialog(id, l)) return;
+                if (!hasMic()) {
+                    putResult(id, "error", "permission", null);
+                    requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQ_MIC);
+                    return;
+                }
+                startListening(id, l, 0);
+            });
             return id;
         }
 
         @JavascriptInterface public String result(String id) {
             String r = results.get(id);
-            if (r != null && !r.contains("\"pending\"")) results.remove(id);
+            if (r != null && !r.contains("\"pending\"") && !r.contains("\"listening\"")) results.remove(id);
             return r != null ? r : "{\"status\":\"error\",\"error\":\"error\"}";
         }
     }
